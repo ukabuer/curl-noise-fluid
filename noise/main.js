@@ -227,7 +227,7 @@ function initCamera() {
   camera.up = up
   camera.viewMatrix = viewMatrix
   camera.projectionMatrix = projectionMatrix,
-  camera.matrix = camera
+  camera.matrix = matrix
 
   mat4.perspective(camera.projectionMatrix, Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
   mat4.lookAt(camera.viewMatrix, camera.position, camera.orientation, up)

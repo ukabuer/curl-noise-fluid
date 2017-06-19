@@ -92,7 +92,7 @@ function initShaders() {
   }
 
   shaders.positionShader = positionShader
-  shader.renderShader = renderShader
+  shaders.renderShader = renderShader
 }
 
 function initParticles() {
@@ -223,8 +223,8 @@ function initCamera() {
   camera.up = up
   camera.viewMatrix = viewMatrix
   camera.projectionMatrix = projectionMatrix,
-  camera.matrix = camera
-  
+  camera.matrix = matrix
+
   mat4.perspective(camera.projectionMatrix, Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
   mat4.lookAt(camera.viewMatrix, camera.position, camera.orientation, up)
   mat4.multiply(camera.matrix, camera.projectionMatrix, camera.viewMatrix)
