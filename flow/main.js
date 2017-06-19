@@ -31,7 +31,7 @@ function renderLoop() {
 }
 
 function initShaders() {
-  
+
   /*
    * See ./glsl.js for original shader codes
    */
@@ -91,10 +91,8 @@ function initShaders() {
     alert("Could not initialise shaders");
   }
 
-  shaders = {
-    positionShader,
-    renderShader,
-  }
+  shaders.positionShader = positionShader
+  shader.renderShader = renderShader
 }
 
 function initParticles() {
@@ -220,14 +218,13 @@ function initCamera() {
   var projectionMatrix = mat4.create();
   var matrix = mat4.create();
 
-  camera = {
-    position,
-    orientation,
-    up,
-    viewMatrix,
-    projectionMatrix,
-    matrix
-  };
+  camera.position = position
+  camera.orientation = orientation
+  camera.up = up
+  camera.viewMatrix = viewMatrix
+  camera.projectionMatrix = projectionMatrix,
+  camera.matrix = camera
+  
   mat4.perspective(camera.projectionMatrix, Math.PI / 4, canvas.width / canvas.height, 0.1, 100);
   mat4.lookAt(camera.viewMatrix, camera.position, camera.orientation, up)
   mat4.multiply(camera.matrix, camera.projectionMatrix, camera.viewMatrix)
