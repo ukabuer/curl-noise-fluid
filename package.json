@@ -1,0 +1,25 @@
+{
+  "name": "curl-noise-fluid",
+  "version": "1.0.0",
+  "description": "[Live Demo](https://ukabuer.github.io/curl-noise-fluid/)",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsc -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ukabuer/curl-noise-fluid.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ukabuer/curl-noise-fluid/issues"
+  },
+  "homepage": "https://github.com/ukabuer/curl-noise-fluid#readme",
+  "dependencies": {
+    "gl-matrix": "^3.3.0",
+    "typescript": "^3.8.3"
+  }
+}

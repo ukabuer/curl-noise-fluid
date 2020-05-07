@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "AMD",
+    "target": "ES5",
+    "noImplicitAny": true,
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "outFile": "public/build/bundled.js",
+    "sourceMap": true,
+    "moduleResolution": "node"
+  },
+  "include": ["src"]
+}
