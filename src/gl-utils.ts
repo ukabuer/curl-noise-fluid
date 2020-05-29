@@ -4,11 +4,14 @@ export function createShader(
   source: string
 ) {
   const shader = gl.createShader(type);
+  if (!shader) return 0;
+
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(gl.getShaderInfoLog(shader));
+    const err = gl.getShaderInfoLog(shader);
+    throw new Error(err || "");
   }
 
   return shader;
@@ -29,6 +32,8 @@ export function createProgram(
       : fragmentShader;
 
   const program = gl.createProgram();
+  if (!program || !v || !f) return 0;
+
   gl.attachShader(program, v);
   gl.attachShader(program, f);
   gl.linkProgram(program);

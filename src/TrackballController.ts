@@ -4,13 +4,18 @@ class TrackballController {
   isMouseDown: boolean;
   lastMouseX: number;
   lastMouseY: number;
-  sensitivity: 0.002;
+  sensitivity: number;
 
-  constructor(canvas: HTMLCanvasElement, camera: Camera) {}
+  constructor(canvas: HTMLCanvasElement, camera: Camera) {
+    this.isMouseDown = false;
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
+    this.sensitivity = 0.02;
+  }
 
   tick = () => {};
 
-  handleMouseDown = (e: MouseEvent) => {};
+  handleMouseDown = (e: Event) => {};
 
   handleMouseUp = (e: MouseEvent) => {};
 
