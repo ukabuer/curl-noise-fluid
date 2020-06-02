@@ -18,9 +18,10 @@ export function createShader(
 }
 
 export function createProgram(
-  gl: WebGLRenderingContext,
+  gl: WebGL2RenderingContext,
   vertexShader: WebGLShader | string,
-  fragmentShader: WebGLShader | string
+  fragmentShader: WebGLShader | string,
+  feedbacks?: string[]
 ) {
   const v =
     typeof vertexShader === "string"
@@ -36,6 +37,11 @@ export function createProgram(
 
   gl.attachShader(program, v);
   gl.attachShader(program, f);
+
+  if (feedbacks) {
+    gl.transformFeedbackVaryings(program, feedbacks, gl.INTERLEAVED_ATTRIBS);
+  }
+
   gl.linkProgram(program);
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
