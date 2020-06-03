@@ -6,7 +6,6 @@ layout(location = 0) in vec4 data;
 uniform sampler2D save;
 
 out vec4 updated;
-out float lifetime;
 
 vec3 mod289(vec3 x) {
   return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -135,12 +134,12 @@ void main() {
   if (data.w <= 0.0) {
     vec2 size = vec2(textureSize(save, 0));
     vec2 uv = vec2(float(gl_VertexID % int(size.x)) / size.x, float(gl_VertexID) / size.x / size.y);
-    updated = texture(save, uv) + vec4(vec3(0), data.w);
+    updated = texture(save, uv);
   } else {
-    updated.xyz = data.xyz + ComputeCurl(data.xyz) * 0.01 + vec3(0, -0.005, 0);
-    updated.w = lifetime = data.w - 0.005;
+    updated.xyz = data.xyz + ComputeCurl(data.xyz) * 0.005;
+    updated.y -= 0.005;
+    updated.w = data.w - 0.005;
   }
 
-  gl_PointSize = lifetime;
-  gl_Position = vec4(data.xyz, 1.0f);
+  gl_Position = updated;
 }

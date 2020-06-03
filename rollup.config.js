@@ -16,6 +16,7 @@ export default {
     typescript(),
     glsl({
       include: "./**/*.glsl",
+      compress: false,
     }),
     nodeResolve(),
     commonjs(),
