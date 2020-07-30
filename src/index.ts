@@ -1,8 +1,10 @@
+import { mat4, vec3 } from "gl-matrix";
 import { createProgram } from "./gl-utils";
 import renderVertexShader from "./shaders/render_vs.glsl";
 import renderFragmentShader from "./shaders/render_fs.glsl";
 import updateVertexShader from "./shaders/update_vs.glsl";
 import updatefragmentShader from "./shaders/update_fs.glsl";
+import Camera from "./Camera";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const gl = canvas.getContext("webgl2");
@@ -11,9 +13,17 @@ if (!gl) {
   throw new Error("Failed to get WebGL2 context.");
 }
 
-const num = 1 << 16;
+const num = 1 << 10;
 const size = Math.sqrt(Math.pow(2, Math.ceil(Math.log2(num))));
 const total = size * size;
+
+const camera = new Camera();
+camera.lookAt(
+  vec3.fromValues(0, 0, 20),
+  vec3.fromValues(0, 0, 0),
+  vec3.fromValues(0, 1, 0)
+);
+camera.perspective(45.0, canvas.width / canvas.height, 1.0, 100.0);
 
 const updateProgram = createProgram(
   gl,
@@ -30,10 +40,10 @@ const renderProgram = createProgram(
 // initial data
 const data = new Array(total * 4);
 for (let i = 0; i < total; i++) {
-  data[i * 4] = 0.2 * Math.random() - 0.1; // x: [-0.1, 0.1)
-  data[i * 4 + 1] = 1.0; // y: [0, 0.1)
+  data[i * 4] = 0.2 * (Math.random() - 0.5);
+  data[i * 4 + 1] = -6.0 * Math.random() - 6; // y: [0, 0.1)
   data[i * 4 + 2] = 0.2 * Math.random() - 0.1; // z: [-0.1, 0.1)
-  data[i * 4 + 3] = 5 * Math.random(); // lifetime
+  data[i * 4 + 3] = 0.5 + Math.random() * 0.5;
 }
 const buffer = new Float32Array(data);
 
@@ -134,9 +144,14 @@ function render(gl: WebGL2RenderingContext) {
   gl.disable(gl.RASTERIZER_DISCARD);
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  // gl.enable(gl.BLEND);
+  gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
   gl.useProgram(renderProgram);
+  gl.uniformMatrix4fv(
+    gl.getUniformLocation(renderProgram, "camera"),
+    false,
+    camera.matrix
+  );
   gl.bindVertexArray(vaos[2]);
   gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, total);
   gl.disable(gl.BLEND);
@@ -177,9 +192,58 @@ part_img.onload = () => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
   gl.clearColor(0, 0, 0, 1);
-  // gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.DEPTH_TEST);
 
   render(gl);
 };
 
 window.addEventListener("resize", () => resize(gl));
+
+let mouseDown = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let CAMERA_SENSITIVITY = 0.002;
+
+canvas.addEventListener("mousedown", function (event) {
+  mouseDown = true;
+  lastMouseX = event.x;
+  lastMouseY = event.y;
+});
+
+document.addEventListener("mouseup", function (event) {
+  mouseDown = false;
+});
+
+canvas.addEventListener("mousemove", function (event) {
+  if (mouseDown) {
+    var mouseX = event.x;
+    var mouseY = event.y;
+
+    var deltaAzimuth = (mouseX - lastMouseX) * CAMERA_SENSITIVITY;
+    var deltaElevation = (mouseY - lastMouseY) * CAMERA_SENSITIVITY;
+
+    mat4.rotateX(camera.viewMatrix, camera.viewMatrix, -deltaElevation);
+    mat4.rotateY(camera.viewMatrix, camera.viewMatrix, deltaAzimuth);
+
+    mat4.multiply(camera.matrix, camera.projectionMatrix, camera.viewMatrix);
+
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
+
+    canvas.style.cursor = "grabbing";
+  } else {
+    canvas.style.cursor = "grab";
+  }
+});
+
+canvas.addEventListener("wheel", (event: WheelEvent) => {
+  const delta = event.deltaY / 120;
+  if (delta < 0) {
+    camera.position[2] += 0.25;
+  } else {
+    camera.position[2] -= 0.25;
+  }
+  console.log(camera.position);
+  mat4.lookAt(camera.viewMatrix, camera.position, camera.target, camera.up);
+  mat4.multiply(camera.matrix, camera.projectionMatrix, camera.viewMatrix);
+});

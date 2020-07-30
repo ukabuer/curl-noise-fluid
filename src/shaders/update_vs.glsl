@@ -136,9 +136,9 @@ void main() {
     vec2 uv = vec2(float(gl_VertexID % int(size.x)) / size.x, float(gl_VertexID) / size.x / size.y);
     updated = texture(save, uv);
   } else {
-    updated.xyz = data.xyz + ComputeCurl(data.xyz) * 0.005;
-    updated.y -= 0.005;
-    updated.w = data.w - 0.005;
+    vec3 speed = ComputeCurl(data.xyz) + vec3(0, 1.0, 0);
+    updated.xyz = data.xyz + speed * 0.05;
+    updated.w = data.w - 0.002;
   }
 
   gl_Position = updated;

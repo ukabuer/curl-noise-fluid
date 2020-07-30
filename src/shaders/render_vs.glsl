@@ -3,16 +3,17 @@ precision mediump float;
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec2 uv;
-layout(location = 2) in vec4 data;
+layout(location = 2) in vec4 offset;
+
+uniform mat4 camera;
 
 out float lifetime;
 out vec2 v_uv;
 
 void main() {
-  vec3 offset = data.xyz;
-  lifetime = data.w;
+  vec3 pos = position + offset.xyz;
+  lifetime = offset.w;
   v_uv = uv;
 
-  gl_PointSize = lifetime;
-  gl_Position = vec4(position * 0.01 + offset, 1.0f);
+  gl_Position = camera * vec4(pos, 1.0);
 }

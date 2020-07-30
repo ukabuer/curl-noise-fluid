@@ -25,7 +25,7 @@ class Camera {
     mat4.multiply(this.matrix, this.projectionMatrix, this.viewMatrix);
   };
 
-  project = (fovy: number, aspect: number, near: number, far: number) => {
+  perspective = (fovy: number, aspect: number, near: number, far: number) => {
     mat4.perspective(this.projectionMatrix, fovy, aspect, near, far);
     mat4.multiply(this.matrix, this.projectionMatrix, this.viewMatrix);
   };
