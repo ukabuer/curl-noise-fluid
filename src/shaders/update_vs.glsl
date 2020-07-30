@@ -1,9 +1,10 @@
 #version 300 es
 precision mediump float;
 
-layout(location = 0) in vec4 data;
+const vec4 sphere = vec4(0.0, 0.0, 0.0, 3.0);
 
-uniform sampler2D save;
+layout(location = 0) in vec4 data;
+layout(location = 1) in vec4 initial;
 
 out vec4 updated;
 
@@ -23,7 +24,7 @@ vec4 taylorInvSqrt(vec4 r) {
   return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-float snoise(vec3 v) { 
+float snoise(vec3 v) {
   const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
   const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
 
@@ -97,48 +98,86 @@ float snoise(vec3 v) {
                                 dot(p2,x2), dot(p3,x3) ) );
 }
 
-vec3 snoiseVec3( vec3 x ){
-  float s  = snoise(vec3( x ));
-  float s1 = snoise(vec3( x.y - 19.1 , x.z + 33.4 , x.x + 47.2 ));
-  float s2 = snoise(vec3( x.z + 74.2 , x.x - 124.5 , x.y + 99.4 ));
-  vec3 c = vec3( s , s1 , s2 );
-  return c;
+vec3 noise3d(vec3 s) {
+  float s0  = snoise(vec3(s));
+  float s1 = snoise(vec3(s.y + 31.416, s.z - 47.853, s.x + 12.793));
+  float s2 = snoise(vec3(s.z - 233.145, s.x - 113.408, s.y - 185.31));
+  return vec3(s0, s1, s2);
+}
+
+float ramp(float r) {
+  if (r > 1.0) return 1.0;
+  if (r < -1.0) return -1.0;
+
+  return 1.875 * r - 1.25 * r * r * r + 0.375 * r * r * r * r * r;
+}
+
+float SampleDistance(vec3 p) {
+  vec3 SphereCenter = sphere.xyz;
+  float SphereRadius = sphere.w;
+  vec3 u = p - SphereCenter;
+  float d = length(u);
+  return d - SphereRadius;
+}
+
+vec3 ComputeGradient(vec3 p) {
+  const float e = 0.01;
+  vec3 dx = vec3(e, 0, 0);
+  vec3 dy = vec3(0, e, 0);
+  vec3 dz = vec3(0, 0, e);
+
+  float d = SampleDistance(p);
+  float dfdx = SampleDistance(p + dx) - d;
+  float dfdy = SampleDistance(p + dy) - d;
+  float dfdz = SampleDistance(p + dz) - d;
+
+  return normalize(vec3(dfdx, dfdy, dfdz));
+}
+
+vec3 BlendVectors(vec3 potential, float alpha, vec3 distanceGradient) {
+  float dp = dot(potential, distanceGradient);
+  return alpha * potential + (1.0 - alpha) * dp * distanceGradient;
 }
 
 vec3 SamplePotential(vec3 p) {
-  return snoiseVec3(p);
+  vec3 gradient = ComputeGradient(p);
+  float obstacleDistance = SampleDistance(p);
+  float d = abs(ramp(obstacleDistance / 1.0));
+
+  vec3 risingForce = vec3(0.0) - p;
+  risingForce = vec3(-risingForce.z, 0.0, risingForce.x);
+  vec3 rpsi = 2.0 * risingForce;
+
+  vec3 psi = BlendVectors(noise3d(p) + rpsi, d, gradient);
+
+  return psi;
 }
 
 vec3 ComputeCurl(vec3 p){
-  const float e = .1;
-  vec3 dx = vec3( e   , 0.0 , 0.0 );
-  vec3 dy = vec3( 0.0 , e   , 0.0 );
-  vec3 dz = vec3( 0.0 , 0.0 , e   );
+  const float e = 0.0001;
+  vec3 dx = vec3(e, 0.0, 0.0);
+  vec3 dy = vec3(0.0, e, 0.0);
+  vec3 dz = vec3(0.0, 0.0, e);
 
-  vec3 p_x0 = SamplePotential( p - dx );
-  vec3 p_x1 = SamplePotential( p + dx );
-  vec3 p_y0 = SamplePotential( p - dy );
-  vec3 p_y1 = SamplePotential( p + dy );
-  vec3 p_z0 = SamplePotential( p - dz );
-  vec3 p_z1 = SamplePotential( p + dz );
+  float x = SamplePotential(p + dy).z - SamplePotential(p - dy).z - SamplePotential(p + dz).y + SamplePotential(p - dz).y;
 
-  float x = p_y1.z - p_y0.z - p_z1.y + p_z0.y;
-  float y = p_z1.x - p_z0.x - p_x1.z + p_x0.z;
-  float z = p_x1.y - p_x0.y - p_y1.x + p_y0.x;
+  float y = SamplePotential(p + dz).x - SamplePotential(p - dz).x - SamplePotential(p + dx).z + SamplePotential(p - dx).z;
 
-  const float divisor = 1.0 / ( 2.0 * e );
-  return normalize( vec3( x , y , z ) * divisor );
+  float z = SamplePotential(p + dx).y - SamplePotential(p - dx).y - SamplePotential(p + dy).x + SamplePotential(p - dy).x;
+
+  const float divisor = 1.0 / (2.0 * e);
+  return normalize(vec3(x, y, z) * divisor);
 }
 
 void main() {
-  if (data.w <= 0.0) {
-    vec2 size = vec2(textureSize(save, 0));
-    vec2 uv = vec2(float(gl_VertexID % int(size.x)) / size.x, float(gl_VertexID) / size.x / size.y);
-    updated = texture(save, uv);
+  float lifetime = data.a;
+
+  if (lifetime < 0.0) {
+    updated = initial;
   } else {
-    vec3 speed = ComputeCurl(data.xyz) + vec3(0, 1.0, 0);
-    updated.xyz = data.xyz + speed * 0.05;
-    updated.w = data.w - 0.002;
+    vec3 speed = ComputeCurl(data.xyz);
+    updated.xyz = data.xyz + speed * 1.0 / 20.0;
+    updated.a = data.a - 0.002;
   }
 
   gl_Position = updated;
