@@ -4,6 +4,9 @@ import typescript from "@rollup/plugin-typescript";
 import nodeResolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import glsl from "rollup-plugin-glsl";
+import { terser } from "rollup-plugin-terser";
+
+const isProduction = process.env.NODE_ENV === "production";
 
 export default {
   input: "src/index.ts",
@@ -16,11 +19,13 @@ export default {
     typescript(),
     glsl({
       include: "./**/*.glsl",
-      compress: false,
+      compress: isProduction,
     }),
     nodeResolve(),
     commonjs({ extensions: [".js", ".ts"] }),
-    serve("public"),
-    livereload({ watch: "public" }),
-  ],
+  ].concat(
+    isProduction
+      ? [terser()]
+      : [serve("public"), livereload({ watch: "public" })]
+  ),
 };
