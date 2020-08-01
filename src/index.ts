@@ -4,7 +4,9 @@ import renderVertexShader from "./shaders/render_vs.glsl";
 import renderFragmentShader from "./shaders/render_fs.glsl";
 import updateVertexShader from "./shaders/update_vs.glsl";
 import updatefragmentShader from "./shaders/update_fs.glsl";
-import Camera from "./Camera";
+import TrackballCamera from "./Camera";
+const dat = require("dat.gui");
+const Stats = require("stats.js");
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const gl = canvas.getContext("webgl2");
@@ -16,10 +18,16 @@ if (!gl) {
 const num = 1 << 16;
 const size = Math.sqrt(Math.pow(2, Math.ceil(Math.log2(num))));
 const total = size * size;
+const sphere = {
+  x: 0,
+  y: 0,
+  z: 0,
+  radius: 3,
+};
 
-const camera = new Camera(canvas);
+const camera = new TrackballCamera(canvas);
 camera.lookAt(
-  vec3.fromValues(0, 0, 20),
+  vec3.fromValues(0, 0, 16),
   vec3.fromValues(0, 0, 0),
   vec3.fromValues(0, 1, 0)
 );
@@ -87,11 +95,29 @@ gl.vertexAttribDivisor(0, 1);
 gl.useProgram(renderProgram);
 gl.uniform1f(gl.getUniformLocation(renderProgram, "size"), 1.0);
 
+// begin ui
+const stats = new Stats();
+stats.showPanel(0);
+document.body.appendChild(stats.dom);
+const gui = new dat.GUI();
+gui.add(sphere, "radius", 2, 6);
+gui.add(sphere, "x", -3, 3);
+gui.add(sphere, "y", -2, 2);
+// end ui
+
 let swap = false;
 function render(gl: WebGL2RenderingContext) {
+  stats.begin();
+
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   gl.useProgram(updateProgram);
+  gl.uniform4fv(gl.getUniformLocation(updateProgram, "sphere"), [
+    sphere.x,
+    sphere.y,
+    sphere.z,
+    sphere.radius,
+  ]);
   gl.bindVertexArray(vaos[swap ? 1 : 0]);
   gl.bindBuffer(gl.ARRAY_BUFFER, vbos[swap ? 1 : 0]);
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, vbos[swap ? 0 : 1]);
@@ -106,6 +132,7 @@ function render(gl: WebGL2RenderingContext) {
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.useProgram(renderProgram);
+  camera.update();
   gl.uniformMatrix4fv(
     gl.getUniformLocation(renderProgram, "camera"),
     false,
@@ -114,6 +141,7 @@ function render(gl: WebGL2RenderingContext) {
   gl.bindVertexArray(vaos[2]);
   gl.drawArraysInstanced(gl.POINTS, 0, 1, total);
 
+  stats.end();
   window.requestAnimationFrame(() => render(gl));
 }
 

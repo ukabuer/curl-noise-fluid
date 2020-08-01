@@ -1,10 +1,10 @@
 #version 300 es
 precision mediump float;
 
-const vec4 sphere = vec4(0.0, 0.0, 0.0, 3.0);
-
 layout(location = 0) in vec4 data;
 layout(location = 1) in vec4 initial;
+
+uniform vec4 sphere;
 
 out vec4 updated;
 

@@ -1,14 +1,33 @@
-import { vec3, mat4 } from "gl-matrix";
+import { vec2, vec3, mat4, quat } from "gl-matrix";
 
-class Camera {
-  position: vec3;
-  target: vec3;
-  up: vec3;
+function getCursorPos(e: MouseEvent | TouchEvent): vec2 {
+  if ((e as TouchEvent).touches) {
+    return vec2.fromValues(
+      (e as TouchEvent).touches[0].pageX,
+      (e as TouchEvent).touches[0].pageY
+    );
+  }
 
-  canvas: HTMLCanvasElement;
-  mouseDown: boolean;
-  lastMouse: [number, number];
-  CAMERA_SENSITIVITY = 0.002;
+  return vec2.fromValues((e as MouseEvent).clientX, (e as MouseEvent).clientY);
+}
+
+class TrackballCamera {
+  private position: vec3;
+  private target: vec3;
+  private up: vec3;
+
+  private canvas: HTMLCanvasElement;
+  private zoomEnd: number;
+  private zoomStart: number;
+  private easing: number;
+  private lastAxis: vec3;
+  private lastAngle: number;
+
+  private box: DOMRect;
+
+  private isMouseDown: boolean;
+  private mousePos: vec2;
+  private prevMousePos: vec2;
 
   readonly projectionMatrix: mat4;
   readonly viewMatrix: mat4;
@@ -16,6 +35,7 @@ class Camera {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    this.box = this.canvas.getBoundingClientRect();
     this.position = vec3.fromValues(0, 0, 5);
     this.target = vec3.fromValues(0, 0, 0);
     this.up = vec3.fromValues(0, 1, 0);
@@ -23,8 +43,14 @@ class Camera {
     this.viewMatrix = mat4.create();
     this.matrix = mat4.create();
 
-    this.lastMouse = [0, 0];
-    this.mouseDown = false;
+    this.easing = 0.1;
+    this.isMouseDown = false;
+    this.prevMousePos = vec2.fromValues(0, 0);
+    this.mousePos = vec2.fromValues(0, 0);
+    this.zoomStart = 0;
+    this.zoomEnd = 0;
+    this.lastAxis = vec3.create();
+    this.lastAngle = 0;
 
     this.addEventListener();
   }
@@ -44,47 +70,119 @@ class Camera {
 
   addEventListener = () => {
     this.canvas.addEventListener("mousedown", this.onMouseDown);
-    document.addEventListener("mousemove", this.onMouseDown);
-    this.canvas.addEventListener("mousedown", this.onMouseDown);
+    document.addEventListener("mousemove", this.onMouseMove);
+    this.canvas.addEventListener("mouseup", this.onMouseUp);
+    this.canvas.addEventListener("wheel", this.onWheel);
+
+    this.canvas.addEventListener("touchstart", this.onMouseDown);
+    document.addEventListener("touchmove", this.onMouseMove);
+    this.canvas.addEventListener("touchend", this.onMouseUp);
   };
 
   removeEventListener = () => {
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
-    document.removeEventListener("mousemove", this.onMouseDown);
-    this.canvas.removeEventListener("mousedown", this.onMouseDown);
+    document.removeEventListener("mousemove", this.onMouseMove);
+    this.canvas.removeEventListener("mouseup", this.onMouseUp);
+    this.canvas.removeEventListener("wheel", this.onWheel);
+
+    this.canvas.removeEventListener("touchstart", this.onMouseDown);
+    document.removeEventListener("touchmove", this.onMouseMove);
+    this.canvas.removeEventListener("touchend", this.onMouseUp);
   };
 
-  onMouseDown = (event: MouseEvent) => {
-    this.mouseDown = true;
-    this.lastMouse = [event.x, event.y];
+  getMouseOnCircle(v: vec2) {
+    const { left, top, width, height } = this.box;
+    return vec2.fromValues(
+      (v[0] - width * 0.5 - left) / (width * 0.5),
+      (height + 2 * (top - v[1])) / width // screen.width intentional
+    );
+  }
+
+  onMouseDown = (event: MouseEvent | TouchEvent) => {
+    this.isMouseDown = true;
+    this.canvas.style.cursor = "grabbing";
+
+    this.prevMousePos = this.getMouseOnCircle(getCursorPos(event));
+    vec2.copy(this.mousePos, this.prevMousePos);
   };
 
   onMouseUp = () => {
-    this.mouseDown = false;
+    this.isMouseDown = false;
+    this.canvas.style.cursor = "grab";
   };
 
-  onMouseMove = (event: MouseEvent) => {
-    if (!this.mouseDown) {
-      this.canvas.style.cursor = "grab";
+  onMouseMove = (event: MouseEvent | TouchEvent) => {
+    if (!this.isMouseDown) {
       return;
     }
 
-    const mouseX = event.x;
-    const mouseY = event.y;
+    vec2.copy(this.prevMousePos, this.mousePos);
+    this.mousePos = this.getMouseOnCircle(getCursorPos(event));
+  };
 
-    const deltaAzimuth = (mouseX - this.lastMouse[0]) * this.CAMERA_SENSITIVITY;
-    const deltaElevation =
-      (mouseY - this.lastMouse[1]) * this.CAMERA_SENSITIVITY;
+  onWheel = (e: MouseWheelEvent) => {
+    this.zoomStart -= e.deltaY * 0.025;
+  };
 
-    mat4.rotateX(this.viewMatrix, this.viewMatrix, -deltaElevation);
-    mat4.rotateY(this.viewMatrix, this.viewMatrix, deltaAzimuth);
+  update = () => {
+    const eye = vec3.create();
+    vec3.subtract(eye, this.position, this.target);
 
-    mat4.multiply(this.matrix, this.projectionMatrix, this.viewMatrix);
+    {
+      // zoom
+      const factor = 1.0 + (this.zoomEnd - this.zoomStart) * 0.01;
+      vec3.scale(eye, eye, factor);
+      this.zoomStart += (this.zoomEnd - this.zoomStart) * this.easing;
+    }
 
-    this.lastMouse = [mouseX, mouseY];
+    {
+      // rotate
+      const move = vec3.fromValues(
+        this.mousePos[0] - this.prevMousePos[0],
+        this.mousePos[1] - this.prevMousePos[1],
+        0
+      );
+      const angle = vec3.length(move);
+      if (angle) {
+        const dir = vec3.create();
+        vec3.copy(dir, eye);
+        vec3.normalize(dir, dir);
+        const up = vec3.create();
+        vec3.copy(up, this.up);
+        vec3.normalize(up, up);
 
-    this.canvas.style.cursor = "grabbing";
+        const sideway = vec3.create();
+        vec3.cross(sideway, up, dir);
+        vec3.normalize(sideway, sideway);
+
+        vec3.scale(sideway, sideway, move[0]);
+        vec3.scale(up, up, move[1]);
+        vec3.add(move, up, sideway);
+
+        const axis = vec3.create();
+        vec3.cross(axis, move, eye);
+        vec3.normalize(axis, axis);
+
+        const q = quat.create();
+        quat.setAxisAngle(q, axis, angle);
+        vec3.transformQuat(eye, eye, q);
+        vec3.transformQuat(this.up, this.up, q);
+
+        vec3.copy(this.lastAxis, axis);
+        this.lastAngle = angle;
+      } else if (this.lastAngle > 0.01) {
+        this.lastAngle *= Math.sqrt(1.0 - this.easing);
+        const q = quat.create();
+        quat.setAxisAngle(q, this.lastAxis, this.lastAngle);
+        vec3.transformQuat(eye, eye, q);
+        vec3.transformQuat(this.up, this.up, q);
+      }
+      vec2.copy(this.prevMousePos, this.mousePos);
+    }
+
+    vec3.add(this.position, this.target, eye);
+    this.lookAt(this.position, this.target, this.up);
   };
 }
 
-export default Camera;
+export default TrackballCamera;

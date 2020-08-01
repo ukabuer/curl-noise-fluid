@@ -19,7 +19,7 @@ export default {
       compress: false,
     }),
     nodeResolve(),
-    commonjs(),
+    commonjs({ extensions: [".js", ".ts"] }),
     serve("public"),
     livereload({ watch: "public" }),
   ],
