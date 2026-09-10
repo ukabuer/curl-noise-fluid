@@ -120,7 +120,7 @@ class TrackballCamera {
     this.mousePos = this.getMouseOnCircle(getCursorPos(event));
   };
 
-  onWheel = (e: MouseWheelEvent) => {
+  onWheel = (e: WheelEvent) => {
     this.zoomStart -= e.deltaY * 0.025;
   };
 

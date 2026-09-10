@@ -5,13 +5,17 @@ import renderFragmentShader from "./shaders/render_fs.glsl";
 import updateVertexShader from "./shaders/update_vs.glsl";
 import updatefragmentShader from "./shaders/update_fs.glsl";
 import TrackballCamera from "./Camera";
-const dat = require("dat.gui");
-const Stats = require("stats.js");
+import { GUI } from "dat.gui";
+import Stats from "stats.js";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const gl = canvas.getContext("webgl2");
 
 if (!gl) {
+  const notice = document.createElement("p");
+  notice.id = "error";
+  notice.textContent = "This demo requires a browser with WebGL2 support.";
+  canvas.replaceWith(notice);
   throw new Error("Failed to get WebGL2 context.");
 }
 
@@ -55,8 +59,12 @@ for (let i = 0; i < total; i++) {
 }
 const initial = new Float32Array(data);
 
-const vbos = [gl.createBuffer(), gl.createBuffer(), gl.createBuffer()];
-if (vbos.indexOf(null) != -1) {
+const vbos = [
+  gl.createBuffer(),
+  gl.createBuffer(),
+  gl.createBuffer(),
+].filter((vbo): vbo is WebGLBuffer => vbo !== null);
+if (vbos.length !== 3) {
   throw new Error("Failed to create buffer");
 }
 gl.bindBuffer(gl.ARRAY_BUFFER, vbos[0]);
@@ -66,8 +74,10 @@ gl.bufferData(gl.ARRAY_BUFFER, data.length * 4, gl.DYNAMIC_COPY);
 gl.bindBuffer(gl.ARRAY_BUFFER, vbos[2]);
 gl.bufferData(gl.ARRAY_BUFFER, initial, gl.STATIC_DRAW);
 
-const vaos = [gl.createVertexArray(), gl.createVertexArray()];
-if (vaos.indexOf(null) !== -1) {
+const vaos = [gl.createVertexArray(), gl.createVertexArray()].filter(
+  (vao): vao is WebGLVertexArrayObject => vao !== null
+);
+if (vaos.length !== 2) {
   throw new Error("Failed to create vertex array");
 }
 gl.bindVertexArray(vaos[0]);
@@ -99,7 +109,7 @@ gl.uniform1f(gl.getUniformLocation(renderProgram, "size"), 1.0);
 const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
-const gui = new dat.GUI();
+const gui = new GUI();
 gui.add(sphere, "radius", 2, 6);
 gui.add(sphere, "x", -3, 3);
 gui.add(sphere, "y", -2, 2);

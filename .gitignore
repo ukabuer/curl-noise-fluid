@@ -1,2 +1,4 @@
 node_modules
-public/build
+dist
+*.tsbuildinfo
+.npm-cache

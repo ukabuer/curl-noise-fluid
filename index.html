@@ -11,11 +11,19 @@
         margin: 0;
         overflow: hidden;
       }
+
+      #error {
+        color: #fff;
+        background: #000;
+        font: 14px/1.6 system-ui, sans-serif;
+        padding: 1rem;
+      }
     </style>
   </head>
 
   <body>
     <canvas id="canvas"></canvas>
-    <script src="./build/bundle.js"></script>
+    <noscript id="error">This demo requires JavaScript and WebGL2.</noscript>
+    <script type="module" src="/src/index.ts"></script>
   </body>
 </html>
